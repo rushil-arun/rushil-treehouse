@@ -95,15 +95,16 @@ pre > code { all: unset; }
 blockquote { border-left: 3px solid var(--rule); color: var(--muted); margin: 1.5rem 0; padding-left: 1rem; }
 hr { border: none; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
 
-/* Header: no site title, only the tabs. The current tab is underlined. */
+/* Header: the site title on the left, the tabs on the right. Only the current tab is underlined. */
 .site-header {
   display: flex;
   align-items: baseline;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 1rem;
   padding-top: 2.5rem;
   padding-bottom: 3rem;
 }
+.site-title { color: var(--fg); font-weight: 700; text-decoration: none; }
 .site-header nav { display: flex; gap: 1rem; }
 .site-header nav a { color: var(--fg); text-decoration: none; }
 .site-header nav a[aria-current="page"] { text-decoration: underline; }
