@@ -1,0 +1,32 @@
+.g2048-score { margin-bottom: 0.5rem; }
+
+.g2048-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.375rem;
+  width: min(100%, 20rem);
+  padding: 0.375rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.g2048-board:focus-visible { outline: 2px solid var(--muted); outline-offset: 2px; }
+
+.g2048-cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--fg) var(--level, 0%), var(--code-bg));
+  color: var(--fg);
+  font-weight: 700;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.g2048-cell[data-big="1"] { color: var(--bg); }
+
+.g2048-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

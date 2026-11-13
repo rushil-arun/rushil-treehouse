@@ -1,0 +1,9 @@
+{
+  "title": "2048",
+  "description": "Use the arrow keys or buttons to play, or let a small Python bot pick the moves.",
+  "entry": "bot",
+  "files": ["game.py", "bot.py"],
+  "packages": [],
+  "ui": "ui.js",
+  "style": "ui.css"
+}

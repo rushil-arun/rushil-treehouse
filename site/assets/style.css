@@ -1,0 +1,148 @@
+/* Typography, colors, and spacing follow the reference blog layout. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("fonts/atkinson-regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("fonts/atkinson-bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #fff;
+  --fg: #111;
+  --muted: #6b6b6b;
+  --rule: #e5e5e5;
+  --code-bg: #f2f2f2;
+  --link: #555;
+  --text: "Atkinson Hyperlegible", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --measure: 38rem;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --fg: #e6e6e6;
+    --muted: #8c8c8c;
+    --rule: #2a2a2a;
+    --code-bg: #1f1f1f;
+    --link: #aaa;
+  }
+}
+
+/* Minimal reset */
+*, *::before, *::after { box-sizing: border-box; border: 0 solid; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; tab-size: 4; line-height: 1.5; background: var(--bg); }
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; }
+ol, ul, menu { list-style: none; }
+img, svg, video, canvas, audio, iframe, embed, object { display: block; vertical-align: middle; }
+button, input, select, textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-radius: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--text);
+  overflow-wrap: break-word;
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.65;
+}
+
+.site-header, main, .site-footer {
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+a { color: var(--link); text-decoration: underline; }
+
+h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; }
+h1 { margin: 0 0 0.5rem; font-size: 2rem; }
+h2 { margin: 2.5rem 0 0.5rem; font-size: 1.5rem; }
+h3 { margin: 2rem 0 0.5rem; font-size: 1.25rem; }
+p { margin: 0 0 1em; }
+strong, b { font-weight: 700; }
+
+.meta { color: var(--muted); font-size: 0.875rem; }
+
+.prose ul, .prose ol { margin: 0 0 1em; padding-left: 1.5em; }
+.prose ul { list-style: outside; }
+.prose ol { list-style: decimal; }
+.prose li { margin: 0.25em 0; }
+
+img { border-radius: 4px; max-width: 100%; height: auto; }
+.prose img { margin: 1.5rem 0; }
+
+code { font-family: var(--mono); background: var(--code-bg); border-radius: 3px; padding: 0.1em 0.35em; font-size: 0.85em; }
+pre { font-family: var(--mono); background: var(--code-bg); border-radius: 4px; margin: 1.5rem 0; padding: 1rem; font-size: 0.8rem; line-height: 1.55; overflow-x: auto; }
+pre > code { all: unset; }
+blockquote { border-left: 3px solid var(--rule); color: var(--muted); margin: 1.5rem 0; padding-left: 1rem; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
+
+/* Header: no site title, only the tabs. The current tab is underlined. */
+.site-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 2.5rem;
+  padding-bottom: 3rem;
+}
+.site-header nav { display: flex; gap: 1rem; }
+.site-header nav a { color: var(--fg); text-decoration: none; }
+.site-header nav a[aria-current="page"] { text-decoration: underline; }
+
+.site-footer { padding-top: 4rem; padding-bottom: 2.5rem; }
+.site-footer a { color: inherit; }
+
+/* Blog listing */
+.post-list { list-style: none; margin: 0; padding: 0; }
+.post-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.5rem 0;
+  text-decoration: none;
+}
+.post-title { text-decoration: underline; }
+.post-row .meta { flex-shrink: 0; }
+@media (max-width: 30rem) {
+  .post-row { flex-direction: column; gap: 0; }
+}
+
+.post-header { margin-bottom: 2.5rem; }
+
+/* Fun page: one section per project, the interface rendered inline. */
+.project { margin: 0 0 3rem; }
+.project h2 { margin-top: 0; }
+.project-ui { margin-top: 1rem; }
+.project-status { margin-top: 0.5rem; }
+.project-error { color: #b42318; }
+
+.button {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.button:hover:not(:disabled) { border-color: var(--muted); }
+.button:disabled { color: var(--muted); cursor: default; }
