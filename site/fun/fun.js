@@ -2,7 +2,8 @@
 //
 // Each project folder holds its Python files, a manifest.json (see the
 // README for every field), and a small ES module interface (ui.js by default)
-// that exports `default function mount(root, ctx)` and draws into `root`.
+// that exports `default function mount(root, ctx, { showError })` and draws
+// into `root`.
 // A pygame game sets "canvas" and "main" in the manifest; the loader gives
 // pygame a <canvas> and the interface runs the game with ctx.start.
 //

@@ -72,7 +72,7 @@ Each project is a folder under `site/fun/projects/` with three things: the Pytho
    }
    ```
 
-   `ctx.call(name, ...args)` calls `name` in the entry module and returns its result. Arguments and results pass through JSON, so use lists, dicts, strings, numbers, booleans, and `None`. If the project's functions take other types, add a small wrapper function in Python. For anything else, `ctx.module` is the entry module and `ctx.pyodide` is the Pyodide instance. `ctx.url("file.png")` gives the URL of a file in the project folder.
+   `ctx.call(name, ...args)` calls `name` in the entry module and returns its result. Arguments and results pass through JSON, so use lists, dicts, strings, numbers, booleans, and `None`. If the project's functions take other types, add a small wrapper function in Python. For anything else, `ctx.module` is the entry module and `ctx.pyodide` is the Pyodide instance. `ctx.url("file.png")` gives the URL of a file in the project folder. `mount` also gets a third argument, `{ showError }`; `showError(err)` shows an error under the project, the same way a failed Start does.
 
 4. **List it.** Add the folder name to `site/fun/projects/projects.json`. Projects appear in that order.
 
