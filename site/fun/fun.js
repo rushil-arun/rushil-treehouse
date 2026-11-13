@@ -1,16 +1,12 @@
 // Renders every project listed in projects/projects.json onto the Fun page.
 //
-// Each project folder holds its Python files and a manifest.json (see the
-// README for every field). Two kinds of project are supported:
+// Each project folder holds its Python files, a manifest.json (see the
+// README for every field), and a small ES module interface (ui.js by default)
+// that exports `default function mount(root, ctx)` and draws into `root`.
+// A pygame game sets "canvas" and "main" in the manifest; the loader gives
+// pygame a <canvas> and the interface runs the game with ctx.start.
 //
-// - pygame games: set "canvas" and "main" in the manifest. The loader gives
-//   pygame a <canvas> on the page and runs the async main function. No
-//   JavaScript is needed.
-// - anything else: write an ES module interface (ui.js by default) that
-//   exports `default function mount(root, ctx)` and draws into `root`.
-//
-// A ui.js module may also be used with a canvas project, for extra buttons.
-// `ctx` gives it:
+// `ctx` gives the interface:
 //   ctx.call(name, ...args)  call a function in the entry module; arguments and
 //                            the return value pass through JSON
 //   ctx.module               the imported entry module (a Pyodide PyProxy)
@@ -103,10 +99,6 @@ function getPyodide() {
   return pyodidePromise;
 }
 
-// pygame draws to one canvas per page. The project started last owns it, so
-// starting a second game stops the first.
-let stopCanvasOwner = null;
-
 // pygame's set_caption writes the tab title; it is put back when a game ends.
 const PAGE_TITLE = document.title;
 
@@ -164,21 +156,14 @@ async function loadProject(id, manifest, baseUrl) {
     stop: () => siteStop(id),
     // Resolves true when the run finished on its own, false when stopped.
     async start(fn = manifest.main, entry = manifest.entry) {
-      if (stopCanvasOwner && stopCanvasOwner !== ctx.stop) stopCanvasOwner();
       ctx.stop();
-      if (ctx.canvas) {
-        // SDL finds its input events through the element with id "canvas".
-        document.getElementById("canvas")?.removeAttribute("id");
-        ctx.canvas.id = "canvas";
-        pyodide.canvas.setCanvas2D(ctx.canvas);
-        stopCanvasOwner = ctx.stop;
-      }
+      if (ctx.canvas) pyodide.canvas.setCanvas2D(ctx.canvas);
       module = siteImport(dir, entry, true);
       const done = siteStart(id, module, fn);
       try {
         return done ? await done : true;
       } finally {
-        if (ctx.canvas && stopCanvasOwner === ctx.stop) document.title = PAGE_TITLE;
+        if (ctx.canvas) document.title = PAGE_TITLE;
       }
     },
   };
@@ -186,6 +171,8 @@ async function loadProject(id, manifest, baseUrl) {
   if (manifest.canvas) {
     const canvas = document.createElement("canvas");
     canvas.className = "project-canvas";
+    // SDL finds its input events through the element with id "canvas".
+    canvas.id = "canvas";
     canvas.width = manifest.canvas.width;
     canvas.height = manifest.canvas.height;
     ctx.canvas = canvas;
@@ -227,31 +214,18 @@ function renderProject(container, id, manifest) {
     start.disabled = true;
     status.classList.remove("project-error");
     status.textContent = pyodidePromise ? "Loading…" : "Loading Python (first time only, a few seconds)…";
-    let ctx;
     try {
-      // A pygame project ("main" set) needs no interface module unless it names one.
-      const uiPath = manifest.ui ?? (manifest.main ? null : "ui.js");
-      const [loaded, uiModule] = await Promise.all([
+      const [ctx, uiModule] = await Promise.all([
         loadProject(id, manifest, baseUrl),
-        uiPath ? import(new URL(uiPath, baseUrl).href) : null,
+        import(new URL(manifest.ui ?? "ui.js", baseUrl).href),
       ]);
-      ctx = loaded;
       ui.replaceChildren();
       if (ctx.canvas) ui.append(ctx.canvas);
       status.textContent = "";
-      if (uiModule) {
-        await uiModule.default(ui, ctx, { showError });
-      } else if (manifest.main) {
-        // With no interface, Start is the only control: put it back under
-        // the canvas once the game ends or another game takes the canvas.
-        await ctx.start();
-        start.textContent = "Play again";
-        start.disabled = false;
-        ui.append(start);
-      }
+      await uiModule.default(ui, ctx, { showError });
     } catch (err) {
       showError(err);
-      if (!ctx) start.disabled = false;
+      start.disabled = false;
     }
   });
 }

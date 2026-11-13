@@ -35,7 +35,7 @@ site/
 
 ## Add a project to the Fun tab
 
-Each project is a folder under `site/fun/projects/` with three things: the Python code, a `manifest.json`, and a small JavaScript interface. `site/fun/projects/2048/` is a working example. A pygame game can skip most of the interface and draw on a canvas instead; see [pygame games](#pygame-games) below, and `site/fun/projects/ballz/` for an example.
+Each project is a folder under `site/fun/projects/` with three things: the Python code, a `manifest.json`, and a small JavaScript interface. `site/fun/projects/2048/` is a working example. A pygame game draws on a canvas and its interface only adds controls; see [pygame games](#pygame-games) below, and `site/fun/projects/ballz/` for an example.
 
 1. **Copy the Python in.** Make `site/fun/projects/<id>/` and copy the project's `.py` files into it, keeping any subfolders. The files run unchanged; the folder is put first on `sys.path`, so imports like `from board import Board` work.
 
@@ -58,7 +58,7 @@ Each project is a folder under `site/fun/projects/` with three things: the Pytho
    - `files`: every Python file to load, relative to the project folder. A static host cannot list a folder, so each file must be named here.
    - `packages` (optional): packages that ship with Pyodide, such as `numpy`. The [list of included packages](https://pyodide.org/en/stable/usage/packages-in-pyodide.html) shows what is available.
    - `pypi` (optional): pure-Python packages to install from PyPI with micropip.
-   - `ui` (optional, default `ui.js`, or none for a [pygame game](#pygame-games)): the interface module.
+   - `ui` (optional, default `ui.js`): the interface module.
    - `style` (optional): a stylesheet for the interface.
    - `source` (optional): load the `files` from another URL instead of the project folder, for example `"https://raw.githubusercontent.com/<user>/<repo>/main/"` to run the code straight from a public GitHub repo. The manifest and interface still live in the project folder.
 
@@ -106,9 +106,9 @@ Pyodide ships pygame-ce, and it can draw into a `<canvas>` on the page. `site/fu
    - `main`: the async function to run in the `entry` module.
    - `canvas`: the size passed to `pygame.display.set_mode`. The canvas keeps that shape and shrinks to fit narrow screens; mouse positions are scaled to match.
 
-   With `main` and `canvas` set, `ui` is optional: without one, Start runs `main` right away. A `ui.js` can add controls around the canvas using `ctx.start(fn, module)`, which re-imports `module` (default: `entry`) from scratch and runs its function `fn` (default: `main`), and `ctx.stop()`. `ctx.start` returns a Promise that resolves `true` when the game ended on its own and `false` when it was stopped. `ctx.canvas` is the canvas element.
+   The `ui.js` adds controls around the canvas using `ctx.start(fn, module)`, which re-imports `module` (default: `entry`) from scratch and runs its function `fn` (default: `main`), and `ctx.stop()`. `ctx.start` returns a Promise that resolves `true` when the game ended on its own and `false` when it was stopped. `ctx.canvas` is the canvas element.
 
-Only one pygame game runs at a time: SDL listens for input on the element with `id="canvas"`, so starting a game stops any other pygame game on the page. While a game runs, `pygame.display.set_caption` sets the browser tab's title. Ballz reads only the mouse, and the page keeps its own keys (Space and the arrows still scroll); a game that reads the keyboard has not been tried yet.
+While a game runs, `pygame.display.set_caption` sets the browser tab's title. Ballz reads only the mouse, and the page keeps its own keys (Space and the arrows still scroll); a game that reads the keyboard has not been tried yet.
 
 ### Notes
 

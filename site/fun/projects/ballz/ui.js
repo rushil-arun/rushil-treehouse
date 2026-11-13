@@ -18,8 +18,7 @@ export default function mount(root, ctx, { showError }) {
     const id = ++runId;
     note.textContent = MODES[mode].running;
     try {
-      // False when this run was stopped: by the other mode button, or by
-      // another pygame game on the page taking the canvas.
+      // False when this run was stopped by the other mode button.
       const finished = await ctx.start("game", MODES[mode].entry);
       if (id === runId) {
         note.textContent = finished ? "Game over. Pick a mode to play again." : "Stopped. Pick a mode to play again.";
