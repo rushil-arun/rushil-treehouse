@@ -1,8 +1,8 @@
-# personal-site
+# rushil-treehouse
 
 A plain static site with three tabs: About, Blog, and Fun. There is no build step; everything that gets published lives in `site/`. The Fun tab runs Python projects in the browser with [Pyodide](https://pyodide.org).
 
-It is published at https://rushil-arun.github.io/personal-site/. Every link is relative, so the same files work under that path and on a local server.
+It is published at https://rushil-arun.github.io/rushil-treehouse/. Every link is relative, so the same files work under that path and on a local server.
 
 ## Preview locally
 
