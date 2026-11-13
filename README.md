@@ -35,7 +35,7 @@ site/
 
 ## Add a project to the Fun tab
 
-Each project is a folder under `site/fun/projects/` with three things: the Python code, a `manifest.json`, and a small JavaScript interface. `site/fun/projects/2048/` is a working example.
+Each project is a folder under `site/fun/projects/` with three things: the Python code, a `manifest.json`, and a small JavaScript interface. `site/fun/projects/2048/` is a working example. A pygame game can skip most of the interface and draw on a canvas instead; see [pygame games](#pygame-games) below, and `site/fun/projects/ballz/` for an example.
 
 1. **Copy the Python in.** Make `site/fun/projects/<id>/` and copy the project's `.py` files into it, keeping any subfolders. The files run unchanged; the folder is put first on `sys.path`, so imports like `from board import Board` work.
 
@@ -58,7 +58,7 @@ Each project is a folder under `site/fun/projects/` with three things: the Pytho
    - `files`: every Python file to load, relative to the project folder. A static host cannot list a folder, so each file must be named here.
    - `packages` (optional): packages that ship with Pyodide, such as `numpy`. The [list of included packages](https://pyodide.org/en/stable/usage/packages-in-pyodide.html) shows what is available.
    - `pypi` (optional): pure-Python packages to install from PyPI with micropip.
-   - `ui` (optional, default `ui.js`): the interface module.
+   - `ui` (optional, default `ui.js`, or none for a [pygame game](#pygame-games)): the interface module.
    - `style` (optional): a stylesheet for the interface.
    - `source` (optional): load the `files` from another URL instead of the project folder, for example `"https://raw.githubusercontent.com/<user>/<repo>/main/"` to run the code straight from a public GitHub repo. The manifest and interface still live in the project folder.
 
@@ -76,9 +76,45 @@ Each project is a folder under `site/fun/projects/` with three things: the Pytho
 
 4. **List it.** Add the folder name to `site/fun/projects/projects.json`. Projects appear in that order.
 
+### pygame games
+
+Pyodide ships pygame-ce, and it can draw into a `<canvas>` on the page. `site/fun/projects/ballz/` runs the original Ballz game this way.
+
+1. **Make the main loop async.** The browser only redraws and delivers input when Python gives control back, so the loop has to yield once per frame. Four small edits do it, and the file still runs on the desktop with `python game.py`:
+
+   ```python
+   import asyncio                      # 1. add the import
+
+   async def game():                   # 2. make the main function async
+       while running:
+           ...
+           pygame.display.update()
+           await asyncio.sleep(0)      # 3. yield to the browser every frame
+
+   if __name__ == "__main__":          # 4. don't start the game on import
+       asyncio.run(game())
+   ```
+
+2. **Add these to `manifest.json`:**
+
+   ```json
+   "packages": ["pygame-ce"],
+   "main": "game",
+   "canvas": { "width": 402, "height": 700 }
+   ```
+
+   - `main`: the async function to run in the `entry` module.
+   - `canvas`: the size passed to `pygame.display.set_mode`. The canvas keeps that shape and shrinks to fit narrow screens; mouse positions are scaled to match.
+
+   With `main` and `canvas` set, `ui` is optional: without one, Start runs `main` right away. A `ui.js` can add controls around the canvas using `ctx.start(fn, module)`, which re-imports `module` (default: `entry`) from scratch and runs its function `fn` (default: `main`), and `ctx.stop()`. `ctx.start` returns a Promise that resolves `true` when the game ended on its own and `false` when it was stopped. `ctx.canvas` is the canvas element.
+
+Only one pygame game runs at a time: SDL listens for input on the element with `id="canvas"`, so starting a game stops any other pygame game on the page. While a game runs, `pygame.display.set_caption` sets the browser tab's title. Ballz reads only the mouse, and the page keeps its own keys (Space and the arrows still scroll); a game that reads the keyboard has not been tried yet.
+
+### Notes
+
 Each project shows a Start button. The first Start on a page downloads Pyodide (several MB, once); every project on the page then shares it. Python runs on the page's main thread, so keep each call short: a long search freezes the page until it returns.
 
-**What will not run:** Pyodide is CPython compiled to WebAssembly. Packages with native code (C, C++, Rust extensions) run only if Pyodide ships a build of them (see the package list above), and micropip can only install pure-Python wheels. Programs that need threads, subprocesses, sockets, or a desktop GUI toolkit (tkinter, pygame windows) also will not work; the interface has to be rewritten as `ui.js`.
+**What will not run:** Pyodide is CPython compiled to WebAssembly. Packages with native code (C, C++, Rust extensions) run only if Pyodide ships a build of them (see the package list above), and micropip can only install pure-Python wheels. Programs that need threads, subprocesses, sockets, or a desktop GUI toolkit such as tkinter also will not work; the interface has to be rewritten as `ui.js`. pygame is the exception (see [pygame games](#pygame-games)).
 
 ## Deploy
 
