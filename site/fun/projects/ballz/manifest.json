@@ -1,0 +1,11 @@
+{
+  "title": "Ballz",
+  "description": "Aim with the mouse and click to launch the balls. Break the blocks before they reach the bottom, or watch the AI play.",
+  "entry": "ballBlocks",
+  "main": "game",
+  "files": ["ballBlocks.py", "ballBlocksAI.py"],
+  "packages": ["pygame-ce"],
+  "canvas": { "width": 402, "height": 700 },
+  "ui": "ui.js",
+  "style": "ui.css"
+}
