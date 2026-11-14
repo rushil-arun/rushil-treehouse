@@ -1,5 +1,7 @@
 # rushil-treehouse
 
+This is my personal website, and the source is public so anyone can read it. It's a one-person project, so I'm not accepting outside contributions, including pull requests and feature requests.
+
 A plain static site with three tabs: About, Blog, and Fun. There is no build step; everything that gets published lives in `site/`. The Fun tab runs Python projects in the browser with [Pyodide](https://pyodide.org).
 
 It is published at https://rushil-arun.github.io/rushil-treehouse/. Every link is relative, so the same files work under that path and on a local server.
