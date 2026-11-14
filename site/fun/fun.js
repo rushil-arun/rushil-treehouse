@@ -1,15 +1,22 @@
 // Renders every project listed in projects/projects.json onto the Fun page.
 //
-// Each project folder holds its Python files, a manifest.json, and a small
-// ES module interface (ui.js by default) that exports:
+// Each project folder holds its Python files, a manifest.json (see the
+// README for every field), and a small ES module interface (ui.js by default)
+// that exports `default function mount(root, ctx, { showError })` and draws
+// into `root`.
+// A pygame game sets "canvas" and "main" in the manifest; the loader gives
+// pygame a <canvas> and the interface runs the game with ctx.start.
 //
-//   export default function mount(root, ctx) { ... }
-//
-// `root` is the element to draw into. `ctx` gives the interface:
+// `ctx` gives the interface:
 //   ctx.call(name, ...args)  call a function in the entry module; arguments and
-//                            the return value pass through JSON, so use plain
-//                            lists, dicts, strings, numbers, and booleans
+//                            the return value pass through JSON
 //   ctx.module               the imported entry module (a Pyodide PyProxy)
+//   ctx.start(fn, module)    re-import `module` (default: the entry) from
+//                            scratch and run its function `fn` (default: the
+//                            manifest's "main"), stopping whatever ran before;
+//                            returns a Promise that settles when it finishes
+//   ctx.stop()               cancel the running main function
+//   ctx.canvas               the pygame canvas, when the manifest asks for one
 //   ctx.pyodide              the shared Pyodide instance
 //   ctx.manifest             the parsed manifest.json
 //   ctx.url(path)            absolute URL of a file in the project folder
@@ -25,16 +32,18 @@ const FS_ROOT = "/home/pyodide/projects";
 
 // Helpers installed into Pyodide once. `_site_import` puts a project's folder
 // first on sys.path and drops modules that another project loaded under the
-// same name, so two projects can each have their own `game.py`.
+// same name, so two projects can each have their own `game.py`. With
+// fresh=True it also drops this project's own modules, so module-level state
+// (and module-level pygame setup) starts over.
 const BRIDGE = `
-import importlib, json, sys
+import asyncio, importlib, inspect, json, sys
 
 _SITE_ROOT = ${JSON.stringify(FS_ROOT)}
 
-def _site_import(path, entry):
+def _site_import(path, entry, fresh=False):
     for name, mod in list(sys.modules.items()):
         f = getattr(mod, "__file__", None) or ""
-        if f.startswith(_SITE_ROOT + "/") and not f.startswith(path + "/"):
+        if f.startswith(_SITE_ROOT + "/") and (fresh or not f.startswith(path + "/")):
             del sys.modules[name]
     if path in sys.path:
         sys.path.remove(path)
@@ -44,6 +53,35 @@ def _site_import(path, entry):
 
 def _site_call(module, name, args_json):
     return json.dumps(getattr(module, name)(*json.loads(args_json)))
+
+_site_tasks = {}
+
+def _site_stop(key):
+    task = _site_tasks.pop(key, None)
+    if task is not None:
+        task.cancel()
+
+def _site_start(key, module, name):
+    """Run module.name(); if it is async, return a future that is True when it
+    finished on its own and False when it was stopped."""
+    _site_stop(key)
+    result = getattr(module, name)()
+    if not inspect.isawaitable(result):
+        return None
+    task = asyncio.ensure_future(result)
+    _site_tasks[key] = task
+
+    async def wait():
+        try:
+            await task
+            return True
+        except asyncio.CancelledError:
+            return False
+        finally:
+            if _site_tasks.get(key) is task:
+                del _site_tasks[key]
+
+    return asyncio.ensure_future(wait())
 `;
 
 let pyodidePromise = null;
@@ -62,14 +100,17 @@ function getPyodide() {
   return pyodidePromise;
 }
 
+// pygame's set_caption writes the tab title; it is put back when a game ends.
+const PAGE_TITLE = document.title;
+
 async function fetchOk(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
   return res;
 }
 
-// Downloads the project's packages and Python files into Pyodide and imports
-// its entry module.
+// Downloads the project's packages and Python files into Pyodide and returns
+// the ctx object handed to its interface.
 async function loadProject(id, manifest, baseUrl) {
   const pyodide = await getPyodide();
 
@@ -97,15 +138,47 @@ async function loadProject(id, manifest, baseUrl) {
     pyodide.FS.writeFile(path, text);
   }
 
-  const module = pyodide.globals.get("_site_import")(dir, manifest.entry);
+  const siteImport = pyodide.globals.get("_site_import");
   const siteCall = pyodide.globals.get("_site_call");
-  return {
+  const siteStart = pyodide.globals.get("_site_start");
+  const siteStop = pyodide.globals.get("_site_stop");
+  let module = null;
+
+  const ctx = {
     pyodide,
-    module,
     manifest,
+    canvas: null,
     url: (path) => new URL(path, baseUrl).href,
-    call: (name, ...args) => JSON.parse(siteCall(module, name, JSON.stringify(args))),
+    get module() {
+      module ??= siteImport(dir, manifest.entry);
+      return module;
+    },
+    call: (name, ...args) => JSON.parse(siteCall(ctx.module, name, JSON.stringify(args))),
+    stop: () => siteStop(id),
+    // Resolves true when the run finished on its own, false when stopped.
+    async start(fn = manifest.main, entry = manifest.entry) {
+      ctx.stop();
+      if (ctx.canvas) pyodide.canvas.setCanvas2D(ctx.canvas);
+      module = siteImport(dir, entry, true);
+      const done = siteStart(id, module, fn);
+      try {
+        return done ? await done : true;
+      } finally {
+        if (ctx.canvas) document.title = PAGE_TITLE;
+      }
+    },
   };
+
+  if (manifest.canvas) {
+    const canvas = document.createElement("canvas");
+    canvas.className = "project-canvas";
+    // SDL finds its input events through the element with id "canvas".
+    canvas.id = "canvas";
+    canvas.width = manifest.canvas.width;
+    canvas.height = manifest.canvas.height;
+    ctx.canvas = canvas;
+  }
+  return ctx;
 }
 
 function el(tag, attrs = {}, text) {
@@ -132,6 +205,12 @@ function renderProject(container, id, manifest) {
     document.head.append(el("link", { rel: "stylesheet", href: new URL(manifest.style, baseUrl).href }));
   }
 
+  const showError = (err) => {
+    console.error(`[fun] ${id}:`, err);
+    status.classList.add("project-error");
+    status.textContent = `Error: ${err.message ?? err}`;
+  };
+
   start.addEventListener("click", async () => {
     start.disabled = true;
     status.classList.remove("project-error");
@@ -142,12 +221,11 @@ function renderProject(container, id, manifest) {
         import(new URL(manifest.ui ?? "ui.js", baseUrl).href),
       ]);
       ui.replaceChildren();
+      if (ctx.canvas) ui.append(ctx.canvas);
       status.textContent = "";
-      await uiModule.default(ui, ctx);
+      await uiModule.default(ui, ctx, { showError });
     } catch (err) {
-      console.error(`[fun] ${id}:`, err);
-      status.classList.add("project-error");
-      status.textContent = `Could not start: ${err.message ?? err}`;
+      showError(err);
       start.disabled = false;
     }
   });
