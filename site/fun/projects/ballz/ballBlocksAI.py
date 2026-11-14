@@ -1,4 +1,5 @@
 import asyncio
+import time
 import pygame
 import random
 from math import floor, sqrt, hypot
@@ -497,6 +498,16 @@ def algorithm(): # make it so that you only check positions that are multiples o
         
     
 
+# Pacing only: the most game frames to run per second, or None for no limit
+# (the original, fastest pace). The page's speed control calls set_speed.
+framesPerSecond = None
+
+
+def set_speed(fps):
+    global framesPerSecond
+    framesPerSecond = fps if fps and fps > 0 else None
+
+
 async def game():
     global level, turn, startingBlockPos, powerUpsList, ballsList, squaresList, trianglesList
     pygame.init()
@@ -513,6 +524,7 @@ async def game():
     powerUpsList = powerups(powerUpsList)
     trianglesList = triangles(trianglesList)
     posRand = algorithm()
+    nextFrame = time.monotonic()
     while not gameOver:
         pos = pygame.mouse.get_pos()
         for event in pygame.event.get():
@@ -594,7 +606,14 @@ async def game():
      
 
         pygame.display.update()
-        await asyncio.sleep(0)  # in the browser, let the page draw and take input
+        # In the browser, let the page draw and take input. With a speed limit,
+        # wait out the rest of this frame's time slot first.
+        if framesPerSecond is None:
+            nextFrame = time.monotonic()
+            await asyncio.sleep(0)
+        else:
+            nextFrame = max(nextFrame + 1 / framesPerSecond, time.monotonic() - 0.25)
+            await asyncio.sleep(max(0, nextFrame - time.monotonic()))
 
     pygame.quit()
 
