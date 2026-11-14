@@ -5,3 +5,14 @@
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
+
+.ballz-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.ballz-speed[hidden] {
+  display: none;
+}
