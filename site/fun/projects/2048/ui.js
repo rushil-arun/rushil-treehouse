@@ -92,5 +92,4 @@ export default function mount(root, ctx) {
   });
 
   render();
-  board.focus({ preventScroll: true });
 }

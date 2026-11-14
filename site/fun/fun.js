@@ -21,11 +21,14 @@
 //   ctx.manifest             the parsed manifest.json
 //   ctx.url(path)            absolute URL of a file in the project folder
 //
-// Pyodide is downloaded once, only when a visitor first starts a project, and
-// every project shares that one instance.
+// Every project loads and starts as soon as the page opens, all in parallel.
+// Pyodide is downloaded once and every project shares that one instance. Each
+// project has a toggle on its heading that hides or shows its window; hiding
+// only collapses it, so nothing reloads or stops. Other pages warm the browser
+// cache for these files ahead of time (see ../assets/prefetch.js).
 
-const PYODIDE_VERSION = "314.0.7";
-const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+import { PYODIDE_URL } from "./pyodide-config.js";
+
 const PROJECTS_URL = new URL("projects/", import.meta.url);
 // Where project files live inside Pyodide's in-memory filesystem.
 const FS_ROOT = "/home/pyodide/projects";
@@ -94,8 +97,6 @@ function getPyodide() {
       pyodide.runPython(BRIDGE);
       return pyodide;
     })();
-    // Let a later click retry after a failed download.
-    pyodidePromise.catch(() => { pyodidePromise = null; });
   }
   return pyodidePromise;
 }
@@ -174,6 +175,8 @@ async function loadProject(id, manifest, baseUrl) {
     canvas.className = "project-canvas";
     // SDL finds its input events through the element with id "canvas".
     canvas.id = "canvas";
+    canvas.tabIndex = 0;
+    pyodide.runPython(`import os; os.environ["SDL_EMSCRIPTEN_KEYBOARD_ELEMENT"] = "#canvas"`);
     canvas.width = manifest.canvas.width;
     canvas.height = manifest.canvas.height;
     ctx.canvas = canvas;
@@ -191,15 +194,28 @@ function el(tag, attrs = {}, text) {
 function renderProject(container, id, manifest) {
   const baseUrl = new URL(`${id}/`, PROJECTS_URL);
   const section = el("section", { class: "project", id: `project-${id}` });
-  section.append(el("h2", {}, manifest.title ?? id));
-  if (manifest.description) section.append(el("p", {}, manifest.description));
+  const bodyId = `project-${id}-body`;
 
+  // The heading's toggle collapses the window with `hidden`; the project keeps
+  // running (and keeps its state) underneath.
+  const toggle = el("button", { class: "project-toggle", type: "button", "aria-expanded": "true", "aria-controls": bodyId });
+  toggle.append(el("span", { class: "project-chevron", "aria-hidden": "true" }), el("span", {}, manifest.title ?? id));
+  const heading = el("h2", { class: "project-heading" });
+  heading.append(toggle);
+
+  const body = el("div", { class: "project-body", id: bodyId });
+  if (manifest.description) body.append(el("p", {}, manifest.description));
   const ui = el("div", { class: "project-ui" });
-  const start = el("button", { class: "button", type: "button" }, "Start");
   const status = el("div", { class: "project-status meta", role: "status" });
-  ui.append(start);
-  section.append(ui, status);
+  body.append(ui, status);
+  section.append(heading, body);
   container.append(section);
+
+  toggle.addEventListener("click", () => {
+    const open = toggle.getAttribute("aria-expanded") !== "true";
+    toggle.setAttribute("aria-expanded", String(open));
+    body.hidden = !open;
+  });
 
   if (manifest.style) {
     document.head.append(el("link", { rel: "stylesheet", href: new URL(manifest.style, baseUrl).href }));
@@ -208,27 +224,23 @@ function renderProject(container, id, manifest) {
   const showError = (err) => {
     console.error(`[fun] ${id}:`, err);
     status.classList.add("project-error");
-    status.textContent = `Error: ${err.message ?? err}`;
+    status.textContent = `Error: ${err.message ?? err}. Reload the page to try again.`;
   };
 
-  start.addEventListener("click", async () => {
-    start.disabled = true;
-    status.classList.remove("project-error");
-    status.textContent = pyodidePromise ? "Loading…" : "Loading Python (first time only, a few seconds)…";
+  status.textContent = "Loading…";
+  (async () => {
     try {
       const [ctx, uiModule] = await Promise.all([
         loadProject(id, manifest, baseUrl),
         import(new URL(manifest.ui ?? "ui.js", baseUrl).href),
       ]);
-      ui.replaceChildren();
       if (ctx.canvas) ui.append(ctx.canvas);
       status.textContent = "";
       await uiModule.default(ui, ctx, { showError });
     } catch (err) {
       showError(err);
-      start.disabled = false;
     }
-  });
+  })();
 }
 
 async function main() {
@@ -238,7 +250,7 @@ async function main() {
     ids = await (await fetchOk(new URL("projects.json", PROJECTS_URL))).json();
   } catch (err) {
     console.error("[fun]", err);
-    container.append(el("p", { class: "project-error" }, `Could not load projects: ${err.message ?? err}`));
+    container.append(el("p", { class: "project-error" }, `Could not load projects: ${err.message ?? err}. Reload the page to try again.`));
     return;
   }
   // One broken manifest shows an error in its own spot instead of hiding the rest.
@@ -251,7 +263,7 @@ async function main() {
       renderProject(container, id, result.value);
     } else {
       console.error(`[fun] ${id}:`, result.reason);
-      container.append(el("p", { class: "project-error" }, `Could not load project "${id}": ${result.reason.message ?? result.reason}`));
+      container.append(el("p", { class: "project-error" }, `Could not load project "${id}": ${result.reason.message ?? result.reason}. Reload the page to try again.`));
     }
   });
 }

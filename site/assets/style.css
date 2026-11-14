@@ -133,6 +133,25 @@ hr { border: none; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
 /* Fun page: one section per project, the interface rendered inline. */
 .project { margin: 0 0 3rem; }
 .project h2 { margin-top: 0; }
+.project-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 700;
+  text-align: left;
+}
+.project-chevron {
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-0.1em);
+  transition: transform 0.15s;
+}
+.project-toggle[aria-expanded="false"] .project-chevron { transform: rotate(-45deg); }
+.project-body { margin-top: 0.5rem; }
+.project-body[hidden] { display: none; }
 .project-ui { margin-top: 1rem; }
 /* pygame canvases keep their shape but shrink to fit the column and screen. */
 .project-canvas {

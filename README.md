@@ -25,6 +25,8 @@ site/
   blog/<slug>/index.html  one folder per post
   fun/index.html        Fun tab
   fun/fun.js            loads Pyodide and renders every project
+  fun/pyodide-config.js Pyodide version and URL, shared with assets/prefetch.js
+  assets/prefetch.js    warms the browser cache for the Fun page from the other pages
   fun/projects/projects.json   which projects appear, in order
   fun/projects/<id>/    one folder per project
 ```
@@ -74,7 +76,7 @@ Each project is a folder under `site/fun/projects/` with three things: the Pytho
    }
    ```
 
-   `ctx.call(name, ...args)` calls `name` in the entry module and returns its result. Arguments and results pass through JSON, so use lists, dicts, strings, numbers, booleans, and `None`. If the project's functions take other types, add a small wrapper function in Python. For anything else, `ctx.module` is the entry module and `ctx.pyodide` is the Pyodide instance. `ctx.url("file.png")` gives the URL of a file in the project folder. `mount` also gets a third argument, `{ showError }`; `showError(err)` shows an error under the project, the same way a failed Start does.
+   `ctx.call(name, ...args)` calls `name` in the entry module and returns its result. Arguments and results pass through JSON, so use lists, dicts, strings, numbers, booleans, and `None`. If the project's functions take other types, add a small wrapper function in Python. For anything else, `ctx.module` is the entry module and `ctx.pyodide` is the Pyodide instance. `ctx.url("file.png")` gives the URL of a file in the project folder. `mount` also gets a third argument, `{ showError }`; `showError(err)` shows an error under the project, the same way a failed load does.
 
 4. **List it.** Add the folder name to `site/fun/projects/projects.json`. Projects appear in that order.
 
@@ -114,7 +116,11 @@ While a game runs, `pygame.display.set_caption` sets the browser tab's title. Ba
 
 ### Notes
 
-Each project shows a Start button. The first Start on a page downloads Pyodide (several MB, once); every project on the page then shares it. Python runs on the page's main thread, so keep each call short: a long search freezes the page until it returns.
+Every project loads and starts on its own when the Fun page opens; there is no Start button. All projects load in parallel and share one Pyodide download (several MB). Each project's heading is a toggle that collapses or expands its window. Collapsing only hides it: the project keeps running and keeps its state, so expanding needs no reload. Python runs on the page's main thread, so keep each call short: a long search freezes the page until it returns.
+
+Because `mount` runs as soon as the page opens, an interface should not grab keyboard focus or start anything that needs the visitor's attention.
+
+**Preloading.** Every other page (About, Blog, each post) includes `assets/prefetch.js`. After that page has loaded and the browser is idle, it downloads Pyodide, the `packages` the manifests list (and their dependencies), and each project's files into the browser's HTTP cache, two requests at a time at low priority. Opening Fun then finds them cached. It skips visitors on Save-Data or 2g connections. This costs a visitor about 7.5 MB (compressed) once per cache lifetime, and the files are the same ones Fun would fetch anyway. A new project is picked up automatically from `projects.json` and its manifest; keep `prefetch.js` in a new page's `<body>` (`<script type="module" src="../assets/prefetch.js"></script>`, with the path adjusted) so that page warms the cache too.
 
 **What will not run:** Pyodide is CPython compiled to WebAssembly. Packages with native code (C, C++, Rust extensions) run only if Pyodide ships a build of them (see the package list above), and micropip can only install pure-Python wheels. Programs that need threads, subprocesses, sockets, or a desktop GUI toolkit such as tkinter also will not work; the interface has to be rewritten as `ui.js`. pygame is the exception (see [pygame games](#pygame-games)).
 
