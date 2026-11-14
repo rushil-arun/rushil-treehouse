@@ -97,8 +97,6 @@ function getPyodide() {
       pyodide.runPython(BRIDGE);
       return pyodide;
     })();
-    // Let the next project's load retry after a failed download.
-    pyodidePromise.catch(() => { pyodidePromise = null; });
   }
   return pyodidePromise;
 }
@@ -177,6 +175,8 @@ async function loadProject(id, manifest, baseUrl) {
     canvas.className = "project-canvas";
     // SDL finds its input events through the element with id "canvas".
     canvas.id = "canvas";
+    canvas.tabIndex = 0;
+    pyodide.runPython(`import os; os.environ["SDL_EMSCRIPTEN_KEYBOARD_ELEMENT"] = "#canvas"`);
     canvas.width = manifest.canvas.width;
     canvas.height = manifest.canvas.height;
     ctx.canvas = canvas;
@@ -224,7 +224,7 @@ function renderProject(container, id, manifest) {
   const showError = (err) => {
     console.error(`[fun] ${id}:`, err);
     status.classList.add("project-error");
-    status.textContent = `Error: ${err.message ?? err}`;
+    status.textContent = `Error: ${err.message ?? err}. Reload the page to try again.`;
   };
 
   status.textContent = "Loading…";
@@ -250,7 +250,7 @@ async function main() {
     ids = await (await fetchOk(new URL("projects.json", PROJECTS_URL))).json();
   } catch (err) {
     console.error("[fun]", err);
-    container.append(el("p", { class: "project-error" }, `Could not load projects: ${err.message ?? err}`));
+    container.append(el("p", { class: "project-error" }, `Could not load projects: ${err.message ?? err}. Reload the page to try again.`));
     return;
   }
   // One broken manifest shows an error in its own spot instead of hiding the rest.
@@ -263,7 +263,7 @@ async function main() {
       renderProject(container, id, result.value);
     } else {
       console.error(`[fun] ${id}:`, result.reason);
-      container.append(el("p", { class: "project-error" }, `Could not load project "${id}": ${result.reason.message ?? result.reason}`));
+      container.append(el("p", { class: "project-error" }, `Could not load project "${id}": ${result.reason.message ?? result.reason}. Reload the page to try again.`));
     }
   });
 }
